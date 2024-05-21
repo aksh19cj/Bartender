@@ -43,6 +43,7 @@ def get_drinks():
 @app.route('/drinks/<id>', methods=['GET'])
 def get_drinks_by_id(id):
     drink = Drink.query.get(id)
+    logging.debug(f"Drink: {drink}")
     if drink is None:
         return jsonify({'error': 'Drink not found'}), 404
     if drink.description == '' or drink.description == None:
@@ -67,36 +68,42 @@ def add_drink_by_id(id):
 
     return jsonify({"message": "Drink added successfully"}), 201
 
-# @app.route('/drinks/<name>', methods=['GET'])
-# def get_drinks_by_name(name):
-#     # Convert input name to lowercase
-#     name = name.lower()
-#     print("Lowercase name:", name)  # Print lowercase name for debugging
-    
-#     # Query the Drink table by the name column
-#     drink = Drink.query.filter_by(name=name).first()
-#     print("Drink:", drink)  # Print drink for debugging
-    
-#     # If no drink with the specified name is found, return a 404 error
-#     if drink is None:
-#         return jsonify({'error': 'Drink not found'}), 404
-    
-#     # Check if description is empty or None
-#     if not drink.description:
-#         return jsonify({'name': drink.name})
-    
-#     # Return the drink details
-#     return jsonify({'name': drink.name, 'description': drink.description})
-
-@app.route('/drinks/<name>', methods=['GET'])
+@app.route('/drink/<name>', methods=['GET'])
 def get_drinks_by_name(name):
-    drink = Drink.query.get(name)
+    drink = Drink.query.filter_by(name=name).first()
     logging.debug(f"Drink: {drink}")
     if drink is None:
         logging.warning("Drink not found")
-        return jsonify({'error': 'Drink not found'}), 404
+        return jsonify({'error': 'Drink not found - new'}), 404
     if not drink.description:
         logging.info("Drink found without description")
         return jsonify({'name': drink.name})
     logging.info("Drink found with description")
     return jsonify({'name': drink.name, 'description': drink.description})
+
+
+@app.route('/drinks/<int:id>', methods=['PUT'])
+def update_drink(id):
+    drink = Drink.query.get_or_404(id)
+    logging.debug(f"Drink: {drink}")
+    data = request.get_json()
+    logging.debug(f"Data: {data}")
+
+    updated = False
+
+    if 'name' in data and drink.name != data['name']:
+        drink.name = data['name']
+        updated = True
+    if 'description' in data and drink.description != data['description']:
+        drink.description = data['description']
+        updated = True
+
+    if updated:
+        try:
+            db.session.commit()
+            return jsonify({'message': 'Drink updated successfully'}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': str(e)}), 500
+    else:
+        return jsonify({'message': 'No changes detected'}), 200
